@@ -1,0 +1,247 @@
+repeat wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+------------------------------------------------
+-- FEATURES
+------------------------------------------------
+
+local FeatureState = {
+    InfiniteJump = false,
+    AutoGrab = false,
+    AntiRagdoll = false,
+    HitboxExpand = false,
+    SpeedBoost = false,
+    Float = false,
+    Galaxy = false,
+    AutoMedusa = false,
+    Optimiser = false,
+    RagdollTP = false
+}
+
+local BOOST_SPEED = 60
+local HITBOX_SIZE = 6
+
+------------------------------------------------
+-- INFINITE JUMP
+------------------------------------------------
+
+UserInputService.JumpRequest:Connect(function()
+    if FeatureState.InfiniteJump then
+        local char = Player.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X,50,hrp.Velocity.Z)
+            end
+        end
+    end
+end)
+
+------------------------------------------------
+-- MAIN LOOP
+------------------------------------------------
+
+RunService.RenderStepped:Connect(function()
+
+    local char = Player.Character
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+
+    if not hum or not hrp then return end
+
+    -- Speed
+    hum.WalkSpeed = FeatureState.SpeedBoost and BOOST_SPEED or 16
+
+    -- Float
+    if FeatureState.Float then
+        hrp.Velocity = Vector3.new(hrp.Velocity.X,0,hrp.Velocity.Z)
+    end
+
+    -- Hitbox
+    if FeatureState.HitboxExpand then
+        for _,p in pairs(Players:GetPlayers()) do
+            if p ~= Player and p.Character then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.Size = Vector3.new(HITBOX_SIZE,HITBOX_SIZE,HITBOX_SIZE)
+                    root.Transparency = 0.6
+                    root.CanCollide = false
+                end
+            end
+        end
+    end
+
+    -- Anti Ragdoll
+    if FeatureState.AntiRagdoll then
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+
+end)
+
+------------------------------------------------
+-- UI
+------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ChoznMobile"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+------------------------------------------------
+-- OPEN BUTTON
+------------------------------------------------
+
+local open = Instance.new("TextButton")
+open.Parent = ScreenGui
+open.Size = UDim2.new(0,50,0,50)
+open.Position = UDim2.new(0,10,0.4,0)
+open.Text = "☰"
+open.BackgroundColor3 = Color3.fromRGB(220,150,170)
+open.TextColor3 = Color3.new(1,1,1)
+
+Instance.new("UICorner",open).CornerRadius = UDim.new(1,0)
+
+------------------------------------------------
+-- DRAGGABLE BUTTON
+------------------------------------------------
+
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+open.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = open.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+open.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+
+        open.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+------------------------------------------------
+-- MENU
+------------------------------------------------
+
+local menu = Instance.new("Frame")
+menu.Parent = ScreenGui
+menu.Size = UDim2.new(0,200,0,320)
+menu.Position = UDim2.new(0.5,-100,0.5,-160)
+menu.BackgroundColor3 = Color3.fromRGB(30,30,35)
+menu.Visible = false
+
+Instance.new("UICorner",menu)
+
+------------------------------------------------
+-- TITLE
+------------------------------------------------
+
+local title = Instance.new("TextLabel")
+title.Parent = menu
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundTransparency = 1
+title.Text = "chozn duels mobile"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+
+------------------------------------------------
+-- SCROLL AREA
+------------------------------------------------
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Parent = menu
+scroll.Size = UDim2.new(1,-10,1,-60)
+scroll.Position = UDim2.new(0,5,0,30)
+scroll.BackgroundTransparency = 1
+scroll.CanvasSize = UDim2.new(0,0,0,600)
+scroll.ScrollBarThickness = 2
+
+local layout = Instance.new("UIListLayout",scroll)
+layout.Padding = UDim.new(0,4)
+
+------------------------------------------------
+-- BUTTONS
+------------------------------------------------
+
+for name,_ in pairs(FeatureState) do
+
+    local btn = Instance.new("TextButton")
+    btn.Parent = scroll
+    btn.Size = UDim2.new(1,0,0,35)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,55)
+    btn.Text = name..": OFF"
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+
+    Instance.new("UICorner",btn)
+
+    btn.MouseButton1Click:Connect(function()
+
+        FeatureState[name] = not FeatureState[name]
+
+        btn.Text = name..": "..(FeatureState[name] and "ON" or "OFF")
+
+        btn.BackgroundColor3 =
+            FeatureState[name]
+            and Color3.fromRGB(220,150,170)
+            or Color3.fromRGB(50,50,55)
+
+    end)
+
+end
+
+------------------------------------------------
+-- CREDIT
+------------------------------------------------
+
+local credit = Instance.new("TextLabel")
+credit.Parent = menu
+credit.Size = UDim2.new(1,0,0,20)
+credit.Position = UDim2.new(0,0,1,-20)
+credit.BackgroundTransparency = 1
+credit.Text = "made by aqua hub and chozn duels"
+credit.TextColor3 = Color3.fromRGB(180,180,180)
+credit.Font = Enum.Font.Gotham
+credit.TextSize = 10
+
+------------------------------------------------
+-- OPEN MENU
+------------------------------------------------
+
+open.MouseButton1Click:Connect(function()
+    menu.Visible = not menu.Visible
+end)
